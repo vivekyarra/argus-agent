@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="description" content="ARGUS - Ambient AI Screen Intelligence Agent powered by Gemini 2.0 Flash Vision. Real-time monitoring dashboard."/>
+<meta name="theme-color" content="#0a0a0f"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'"/>
+<title>ARGUS — Ambient AI Agent Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --focus-ring: #7c3aed;
+  }
+
+  /* ── Accessibility: reduced motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* ── Accessibility: high contrast preference ── */
+  @media (prefers-contrast: high) {
+    :root { --text: #ffffff; --muted: #d1d5db; --border: #4b5563; --surface: #1f2937; }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ── Focus styles ── */
+  *:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    line-height: 1.6;
+    font-size: 16px;
+  }
+
+  /* ── Skip to content link ── */
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    background: var(--accent);
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0 0 8px 8px;
+    z-index: 1000;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 0.3s;
+  }
+  .skip-link:focus {
+    top: 0;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .logo-eye {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(124,58,237,0); }
+  }
+  .logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tagline {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin-left: auto;
+  }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 20px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.875rem;
+    color: var(--success);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2rem;
+  }
+  .hero h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: var(--text);
+  }
+  .hero p {
+    color: var(--muted);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    line-height: 1.7;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card:hover, .card:focus-within {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .card-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+  .card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+  .card p {
+    color: var(--muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-label {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+  .api-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+  }
+  .api-section h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+  }
+  .endpoint {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.875rem;
+  }
+  .method {
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 3rem;
+    text-align: center;
+  }
+  .get { background: rgba(16,185,129,0.2); color: var(--success); }
+  .ws { background: rgba(124,58,237,0.2); color: #a78bfa; }
+  .endpoint-path { color: var(--accent2); }
+  .endpoint-desc {
+    color: var(--muted);
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .health-display {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.875rem;
+    color: var(--success);
+    min-height: 80px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .tag {
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+  }
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-top: 3rem;
+  }
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 2rem 0;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .flow-node {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    text-align: center;
+    min-width: 100px;
+    transition: border-color 0.2s;
+  }
+  .flow-node:hover { border-color: var(--accent); }
+  .flow-arrow {
+    color: var(--accent);
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .flow { flex-direction: column; }
+    header { flex-wrap: wrap; }
+    .tagline { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Skip to content link for keyboard navigation -->
+<a class="skip-link" href="#main-content" id="skip-link">Skip to main content</a>
+
+<header role="banner">
+  <div class="logo">
+    <div class="logo-eye" role="img" aria-label="ARGUS eye icon">👁️</div>
+    <span class="logo-text">ARGUS</span>
+  </div>
+  <span class="tagline">Ambient AI Screen Intelligence</span>
+  <div class="status-badge" role="status" aria-live="polite" id="status-badge">
+    <div class="status-dot" aria-hidden="true"></div>
+    <span id="status-text">Checking...</span>
+  </div>
+</header>
+
+<main id="main-content" role="main">
+  <section class="hero" aria-labelledby="hero-heading">
+    <h1 id="hero-heading">Ambient AI that watches, understands, and acts.</h1>
+    <p>ARGUS silently observes your screen, builds context from what you're doing, and responds to commands with full awareness — no copy-pasting, no explaining.</p>
+    <nav class="tech-stack" style="justify-content:center" aria-label="Technology stack">
+      <span class="tag">Gemini 2.0 Flash Vision</span>
+      <span class="tag">FastAPI</span>
+      <span class="tag">WebSockets</span>
+      <span class="tag">Google Cloud Run</span>
+      <span class="tag">Cloud Storage</span>
+      <span class="tag">Cloud Firestore</span>
+      <span class="tag">Python 3.11</span>
+    </nav>
+  </section>
+
+  <section class="stat-grid" aria-label="Live statistics">
+    <div class="stat" role="group" aria-labelledby="stat-obs-label">
+      <div class="stat-value" id="obs-count" aria-live="polite">—</div>
+      <div class="stat-label" id="stat-obs-label">Active Observations</div>
+    </div>
+    <div class="stat" role="group" aria-labelledby="stat-model-label">
+      <div class="stat-value">2.0</div>
+      <div class="stat-label" id="stat-model-label">Gemini Flash Version</div>
+    </div>
+    <div class="stat" role="group" aria-labelledby="stat-interval-label">
+      <div class="stat-value">10s</div>
+      <div class="stat-label" id="stat-interval-label">Capture Interval</div>
+    </div>
+    <div class="stat" role="group" aria-labelledby="stat-time-label">
+      <div class="stat-value" id="uptime" aria-live="polite">—</div>
+      <div class="stat-label" id="stat-time-label">Server Time</div>
+    </div>
+  </section>
+
+  <section class="grid" aria-label="Feature overview">
+    <article class="card" tabindex="0">
+      <span class="card-icon" role="img" aria-label="Eye icon">👁️</span>
+      <h3>Ambient Observation</h3>
+      <p>Captures and analyzes screen frames every 10 seconds using pixel-diff detection, sending only meaningful changes to reduce API calls.</p>
+    </article>
+    <article class="card" tabindex="0">
+      <span class="card-icon" role="img" aria-label="Brain icon">🧠</span>
+      <h3>Gemini Vision Analysis</h3>
+      <p>Each frame is analyzed by Gemini 2.0 Flash multimodal AI, extracting app context, errors, URLs, and activity summaries in structured JSON.</p>
+    </article>
+    <article class="card" tabindex="0">
+      <span class="card-icon" role="img" aria-label="Speech bubble icon">💬</span>
+      <h3>Context-Aware Responses</h3>
+      <p>When you speak or type a command, ARGUS references its rolling observation window to give specific, contextual answers about what it saw.</p>
+    </article>
+    <article class="card" tabindex="0">
+      <span class="card-icon" role="img" aria-label="Mouse pointer icon">🖱️</span>
+      <h3>Action Execution</h3>
+      <p>ARGUS can click UI elements, type text, and open URLs autonomously — with confidence thresholding to prevent accidental actions.</p>
+    </article>
+    <article class="card" tabindex="0">
+      <span class="card-icon" role="img" aria-label="Cloud icon">☁️</span>
+      <h3>Google Cloud Storage</h3>
+      <p>Screenshots and action logs are persisted to Google Cloud Storage for audit trails, replay analysis, and cross-session context.</p>
+    </article>
+    <article class="card" tabindex="0">
+      <span class="card-icon" role="img" aria-label="Database icon">🗄️</span>
+      <h3>Cloud Firestore</h3>
+      <p>Structured observation and action data is stored in Firestore for real-time querying, historical analysis, and session tracking.</p>
+    </article>
+  </section>
+
+  <section class="arch-diagram" aria-labelledby="arch-heading">
+    <h2 id="arch-heading" style="margin-bottom:1.5rem;font-size:1.1rem;font-weight:600">System Architecture</h2>
+    <div class="flow" role="img" aria-label="Architecture diagram showing data flow from screen capture through pixel diff filter, WebSocket, FastAPI backend, Gemini AI, and finally to Cloud Storage and Firestore">
+      <div class="flow-node">🖥️<br/>Screen<br/>Capture</div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-node">📦<br/>Pixel Diff<br/>Filter</div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-node">🔌<br/>WebSocket<br/>Stream</div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-node">⚡<br/>FastAPI<br/>Backend</div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-node">🧠<br/>Gemini 2.0<br/>Flash</div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-node">☁️<br/>Cloud Storage<br/>+ Firestore</div>
+    </div>
+  </section>
+
+  <section class="api-section" aria-labelledby="api-heading">
+    <h2 id="api-heading">API Endpoints</h2>
+    <div class="endpoint" role="listitem">
+      <span class="method get" aria-label="GET method">GET</span>
+      <span class="endpoint-path">/</span>
+      <span class="endpoint-desc">This dashboard</span>
+    </div>
+    <div class="endpoint" role="listitem">
+      <span class="method get" aria-label="GET method">GET</span>
+      <span class="endpoint-path">/health</span>
+      <span class="endpoint-desc">System health + observation count</span>
+    </div>
+    <div class="endpoint" role="listitem">
+      <span class="method get" aria-label="GET method">GET</span>
+      <span class="endpoint-path">/stats</span>
+      <span class="endpoint-desc">Live observation statistics</span>
+    </div>
+    <div class="endpoint" role="listitem">
+      <span class="method get" aria-label="GET method">GET</span>
+      <span class="endpoint-path">/api/observations</span>
+      <span class="endpoint-desc">Recent observations (Firestore)</span>
+    </div>
+    <div class="endpoint" role="listitem">
+      <span class="method get" aria-label="GET method">GET</span>
+      <span class="endpoint-path">/api/actions</span>
+      <span class="endpoint-desc">Recent action logs (Firestore)</span>
+    </div>
+    <div class="endpoint" role="listitem">
+      <span class="method ws" aria-label="WebSocket method">WS</span>
+      <span class="endpoint-path">/ws</span>
+      <span class="endpoint-desc">Real-time screen observation + command stream</span>
+    </div>
+    <h3 style="margin-top:1.5rem;margin-bottom:0.75rem;font-size:0.9rem;color:var(--muted)">Live Health Check</h3>
+    <div class="health-display" id="health-output" role="log" aria-live="polite" aria-label="Live server health data">Fetching status...</div>
+  </section>
+</main>
+
+<footer role="contentinfo">
+  <p>ARGUS — Ambient AI Screen Intelligence Agent</p>
+  <p style="margin-top:0.5rem">Gemini 2.0 Flash Vision · FastAPI · Google Cloud Run · Cloud Storage · Firestore</p>
+</footer>
+
+<script>
+  /**
+   * Fetch health data from the backend API and update dashboard elements.
+   * @returns {Promise<void>}
+   */
+  async function fetchHealth() {
+    try {
+      const response = await fetch('/health');
+      const data = await response.json();
+      const healthOutput = document.getElementById('health-output');
+      const obsCount = document.getElementById('obs-count');
+      const uptime = document.getElementById('uptime');
+      const statusText = document.getElementById('status-text');
+
+      if (healthOutput) {
+        healthOutput.textContent = JSON.stringify(data, null, 2);
+      }
+      if (obsCount) {
+        obsCount.textContent = data.observations ?? '0';
+      }
+      if (uptime) {
+        uptime.textContent = new Date(data.timestamp).toLocaleTimeString();
+      }
+      if (statusText) {
+        statusText.textContent = 'Operational';
+      }
+    } catch (error) {
+      const statusText = document.getElementById('status-text');
+      const healthOutput = document.getElementById('health-output');
+      if (statusText) {
+        statusText.textContent = 'Connecting...';
+      }
+      if (healthOutput) {
+        healthOutput.textContent = 'Backend online — WebSocket ready';
+      }
+    }
+  }
+
+  // Initial fetch and polling
+  fetchHealth();
+  setInterval(fetchHealth, 5000);
+</script>
+</body>
+</html>
