@@ -17,7 +17,7 @@ status, and Firestore connectivity.
 ```json
 {
   "status": "operational",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "observations": 12,
   "timestamp": "2025-01-15T10:30:00.000000",
   "model": "gemini-2.0-flash-lite",
@@ -32,7 +32,13 @@ status, and Firestore connectivity.
     "project_id": "my-project",
     "observations_count": 150,
     "status": "connected"
-  }
+  },
+  "secret_manager": {
+    "available": true,
+    "project_id": "my-project",
+    "library_installed": true
+  },
+  "cloud_logging": true
 }
 ```
 
@@ -196,15 +202,28 @@ Optional authentication via query parameter: `/ws?api_key=your_key`
 
 ### Authentication
 - Optional API key authentication via `api_key` query parameter
-- Configured via `ARGUS_API_KEY` environment variable
+- Production: credentials loaded from **Google Cloud Secret Manager**
+- Development: configured via `ARGUS_API_KEY` environment variable
 - Disabled when `ARGUS_API_KEY` is not set
+
+### Input Validation (Pydantic V2)
+
+All WebSocket messages are validated against **Pydantic V2 strict models**
+before processing:
+
+- `ObserveMessage`: `screenshot_b64` must be 100–10MB, valid base64 only
+- `CommandMessage`: `text` must be 1–1000 chars, sanitized of control chars
+- Unknown `type` fields are rejected immediately
+- Invalid JSON raises `ValueError`
 
 ## Security Headers
 
 All HTTP responses include:
-- `Content-Security-Policy`
+- `Content-Security-Policy: script-src 'strict-dynamic' 'self'` (OWASP A05:2021)
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `X-XSS-Protection: 1; mode=block`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()`
+- `base-uri: 'self'`
+- `form-action: 'self'`

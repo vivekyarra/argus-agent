@@ -93,7 +93,7 @@ class GeminiAgent:
             text = re.sub(r"^```\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
             text = text.strip()
-            return json.loads(text)
+            return json.loads(text)  # type: ignore[no-any-return]
         except (json.JSONDecodeError, ValueError) as exc:
             logger.warning("JSON parse failed: %s | Raw: %s", exc, text[:200])
             return {}
@@ -129,7 +129,7 @@ class GeminiAgent:
         for attempt in range(self.max_retries):
             try:
                 response = self.model.generate_content(content)
-                return response.text
+                return response.text  # type: ignore[no-any-return]
             except Exception as exc:
                 wait_time = self.retry_delay * (2 ** attempt)
                 logger.warning(

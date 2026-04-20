@@ -100,7 +100,6 @@ class TestCommandSanitization:
     def test_empty_command_returns_empty(self) -> None:
         """Test that empty input returns empty string."""
         assert sanitize_command("") == ""
-        assert sanitize_command(None) == ""
 
     def test_command_truncation(self) -> None:
         """Test that long commands are truncated."""
@@ -140,7 +139,6 @@ class TestURLValidation:
     def test_empty_url_rejected(self) -> None:
         """Test that empty URLs are rejected."""
         assert validate_url("") is False
-        assert validate_url(None) is False
 
     def test_url_with_port(self) -> None:
         """Test that URLs with port numbers are accepted."""

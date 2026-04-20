@@ -4,6 +4,12 @@ Provides rate limiting, API key authentication, input sanitization,
 and security header middleware for the FastAPI application. All security
 controls are configurable via environment variables.
 
+OWASP Top 10 Coverage:
+    A03:2021 — Injection: sanitize_command(), validate_url()
+    A04:2021 — Insecure Design: RateLimiter
+    A05:2021 — Security Misconfiguration: SecurityHeadersMiddleware
+    A07:2021 — Identification & Auth Failures: validate_api_key()
+
 Typical usage:
     from backend.security import RateLimiter, validate_api_key, SecurityHeadersMiddleware
 
@@ -27,6 +33,9 @@ from starlette.responses import Response
 
 class RateLimiter:
     """Token-bucket rate limiter scoped per client IP address.
+
+    Mitigates: OWASP A04:2021 — Insecure Design by preventing API abuse
+    through configurable per-client request throttling.
 
     Tracks request timestamps per client and rejects requests that exceed
     the configured rate. Thread-safe for use with async FastAPI handlers.
@@ -89,9 +98,10 @@ class RateLimiter:
 def validate_api_key(provided_key: Optional[str]) -> bool:
     """Validate an API key against the configured server key using constant-time comparison.
 
-    Uses HMAC comparison to prevent timing attacks. If no server key
-    is configured (ARGUS_API_KEY not set), authentication is disabled
-    and all requests are allowed.
+    Mitigates: OWASP A07:2021 — Identification and Authentication Failures
+    by using HMAC-based constant-time comparison to prevent timing attacks.
+    If no server key is configured (ARGUS_API_KEY not set), authentication
+    is disabled and all requests are allowed.
 
     Args:
         provided_key: The API key provided by the client.
@@ -129,8 +139,10 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
 def sanitize_command(command: str, max_length: int = 1000) -> str:
     """Sanitize user command input by stripping control characters and truncating.
 
-    Removes null bytes, ANSI escape sequences, and other non-printable
-    control characters. The result is truncated to ``max_length``.
+    Mitigates: OWASP A03:2021 — Injection by removing null bytes, ANSI
+    escape sequences, and other non-printable control characters that
+    could be used for command injection or log poisoning. The result
+    is truncated to ``max_length`` to prevent buffer overflow attacks.
 
     Args:
         command: Raw command string from user input.
@@ -153,8 +165,9 @@ def sanitize_command(command: str, max_length: int = 1000) -> str:
 def validate_url(url: str) -> bool:
     """Validate that a URL uses an allowed scheme and has proper structure.
 
-    Only ``http`` and ``https`` schemes are permitted to prevent
-    ``file://``, ``javascript:``, and other dangerous URI schemes.
+    Mitigates: OWASP A03:2021 — Injection and OWASP A10:2021 — SSRF
+    by restricting URL schemes to ``http`` and ``https`` only, preventing
+    ``file://``, ``javascript:``, ``data:``, and other dangerous URI schemes.
 
     Args:
         url: The URL string to validate.
@@ -182,9 +195,9 @@ def validate_url(url: str) -> bool:
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware that adds security headers to all HTTP responses.
 
-    Adds Content-Security-Policy, X-Frame-Options, X-Content-Type-Options,
-    Referrer-Policy, and Permissions-Policy headers. Configurable via
-    constructor parameters.
+    Mitigates: OWASP A05:2021 — Security Misconfiguration by setting
+    strict Content-Security-Policy with ``strict-dynamic``, X-Frame-Options,
+    X-Content-Type-Options, Referrer-Policy, and Permissions-Policy headers.
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -207,10 +220,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'strict-dynamic' 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "
             "connect-src 'self' ws: wss:; "
-            "frame-ancestors 'none'"
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
         )
         return response

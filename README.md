@@ -5,9 +5,10 @@
 [![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-Deployed-4285F4?logo=google-cloud)](https://argus-309958828415.asia-south1.run.app)
 [![Gemini](https://img.shields.io/badge/Gemini%202.0%20Flash-Vision-8E44AD?logo=google)](https://aistudio.google.com)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Tests](https://img.shields.io/badge/Tests-90%2B%20Assertions-10b981)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-130%2B%20Assertions-10b981)](tests/)
 [![Coverage](https://img.shields.io/badge/Coverage-80%25%2B-10b981)](pyproject.toml)
-[![Type Checked](https://img.shields.io/badge/Type%20Checked-mypy-blue)](pyproject.toml)
+[![Type Checked](https://img.shields.io/badge/mypy-strict-blue)](pyproject.toml)
+[![Security](https://img.shields.io/badge/OWASP-Aligned-critical)](SECURITY.md)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
@@ -21,26 +22,36 @@
 | **Stats API** | [/stats](https://argus-309958828415.asia-south1.run.app/stats) |
 | **Observations API** | [/api/observations](https://argus-309958828415.asia-south1.run.app/api/observations) |
 | **Actions API** | [/api/actions](https://argus-309958828415.asia-south1.run.app/api/actions) |
-| **API Docs** | [/docs](https://argus-309958828415.asia-south1.run.app/docs) |
+| **OpenAPI Docs** | [/docs](https://argus-309958828415.asia-south1.run.app/docs) |
 
 ---
 
-## What Is ARGUS?
+## 💡 The Problem
 
-Most AI agents are reactive — you open them, explain your problem from scratch, and wait. Every time.
+Every AI coding assistant today starts from zero context.
 
-**ARGUS is ambient.** It silently watches your screen every 10 seconds, builds a rolling context window of what you've been doing, and when you say **"ARGUS"** — it already knows your problem before you finish explaining.
+You open ChatGPT, Claude, or Copilot. You paste your error. You explain which file you're in, what you were trying to do, what you already tried. **Every. Single. Time.**
 
-No copy-pasting error messages. No explaining which file you're in. ARGUS was there. It saw everything.
+This is a product-level failure. Humans don't work in isolation — they work in *continuous* workflows, switching between apps, debugging across tabs, referencing docs while editing code. The context is already there, on-screen for dozens of seconds. But current AI can't see it.
 
-### How It Works
+## 🔑 The Insight
+
+**Your screen already contains the context that every AI assistant asks you to type.**
+
+If a system could silently observe what you're doing — the errors, the apps, the URLs, the files — and maintain a rolling memory of your workflow, then when you finally say *"help"*, it would already know more about your problem than you could explain in a paragraph.
+
+## ✨ The Solution — ARGUS
+
+ARGUS is the first **ambient AI agent** that builds context by watching, not asking.
 
 1. **Capture** — Every 10 seconds, the client captures your screen
-2. **Filter** — NumPy pixel-diff comparison drops unchanged frames (~80% API savings)
-3. **Analyze** — Gemini 2.0 Flash Vision extracts structured context (apps, errors, code, URLs)
-4. **Store** — Observations persist to Google Cloud Storage and Cloud Firestore
-5. **Command** — Say "ARGUS" → client captures a fresh frame + your voice command
-6. **Act** — Gemini cross-references history + current command → narrates and executes (clicks, typing) via PyAutoGUI
+2. **Filter** — NumPy pixel-diff drops unchanged frames (~80% API savings)
+3. **Analyze** — Gemini 2.0 Flash Vision extracts structured context
+4. **Store** — Observations persist to Cloud Firestore + GCS with secrets from Secret Manager
+5. **Command** — Say "ARGUS" → it already knows your problem before you finish explaining
+6. **Act** — Click, type, open URLs — with confidence thresholding for safety
+
+> **ARGUS doesn't ask questions. It was already watching.**
 
 ---
 
@@ -51,89 +62,126 @@ No copy-pasting error messages. No explaining which file you're in. ARGUS was th
 │                     YOUR MACHINE                            │
 │                                                             │
 │  ┌─────────────┐    Screenshot     ┌──────────────────┐    │
-│  │  mss        │ ──every 10 sec──▶ │  screen_capture  │    │
-│  │  (capture)  │                   │  + pixel diff    │    │
-│  └─────────────┘                   │  filter          │    │
-│                                    └────────┬─────────┘    │
-│  ┌─────────────┐                            │              │
-│  │  SpeechRec  │ ──"ARGUS" wake word──▶    │              │
-│  │  (mic/kbd)  │                            │              │
-│  └─────────────┘                            │              │
-│                                             │ WebSocket    │
-│  ┌─────────────┐                            │              │
-│  │  PyAutoGUI  │ ◀── coordinates ───────────┘              │
-│  │  (executor) │                                           │
-│  └─────────────┘                                           │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ WebSocket (persistent)
-                               ▼
+│  │  mss         │ ──every 10 sec──▶ │  screen_capture  │    │
+│  │  (capture)   │                   │  + pixel diff    │    │
+│  └──────────────┘                   │  filter          │    │
+│                                     └────────┬─────────┘    │
+│  ┌──────────────┐                            │              │
+│  │  SpeechRec   │ ──"ARGUS" wake word──▶     │              │
+│  │  (mic/kbd)   │                            │              │
+│  └──────────────┘                            │              │
+│                                              │ WebSocket    │
+│  ┌──────────────┐                            │              │
+│  │  PyAutoGUI   │ ◀── coordinates ───────────┘              │
+│  │  (executor)  │                                           │
+│  └──────────────┘                                           │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ WebSocket (persistent)
+                           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              GOOGLE CLOUD RUN (Backend)                     │
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │              FastAPI + WebSocket Server              │  │
-│  │   /health  /stats  /ws  /api/observations  /api/    │  │
+│  │              FastAPI + WebSocket Server               │  │
+│  │  Security: CORS · CSP strict-dynamic · Rate Limit    │  │
+│  │  Auth: API Key via Secret Manager · Pydantic V2      │  │
 │  └──────────┬──────────────────────────────────────────┘  │
 │             │                                              │
 │    ┌────────▼────────┐      ┌─────────────────────────┐   │
 │    │  Gemini 2.0     │      │  Context Manager        │   │
 │    │  Flash Vision   │      │  Rolling 1-min window   │   │
+│    │  + retry/backoff│      │  deque O(1) ops         │   │
 │    └─────────────────┘      └────────┬────────────────┘   │
 │                                      │                     │
-│    ┌─────────────────┐    ┌──────────▼────────────────┐   │
-│    │  Cloud Firestore │    │  Google Cloud Storage    │   │
-│    │  observations,   │    │  screenshots + JSONL     │   │
-│    │  actions,        │    │  action logs             │   │
-│    │  sessions        │    └──────────────────────────┘   │
-│    └─────────────────┘                                     │
+│  ┌─────────────┐  ┌─────────────┐ ┌─▼───────────────┐    │
+│  │ Secret Mgr  │  │Cloud Logging│ │ Cloud Firestore  │    │
+│  │ credentials │  │ observability│ │ observations,    │    │
+│  │ at runtime  │  │ + alerting  │ │ actions,sessions │    │
+│  └─────────────┘  └─────────────┘ └──────────────────┘    │
+│                                                            │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │            Google Cloud Storage                     │    │
+│  │  screenshots + JSONL action logs (dual-write)      │    │
+│  │  tenacity exponential backoff on uploads            │    │
+│  └────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ✨ Features
+## 🚀 Google Cloud Services (7 services integrated)
 
-| Feature | Details |
-|---------|---------|
-| 👁️ **Ambient Observation** | Screen capture with intelligent pixel-diff filtering — only sends meaningful changes |
-| 🧠 **Gemini 2.0 Flash Vision** | Multimodal frame analysis → structured JSON: app, activity, errors, URLs, files |
-| 💬 **Context-Aware Commands** | Voice/text commands answered using a rolling 1-minute observation window |
-| 🖱️ **Action Execution** | Click UI elements, type text, open URLs — with confidence thresholding for safety |
-| ☁️ **Google Cloud Storage** | Screenshots and action logs persisted to GCS for audit trails |
-| 🗄️ **Cloud Firestore** | Structured observation and action data with real-time querying |
-| 🔒 **Security Hardening** | Rate limiting, CORS, CSP headers, API key auth, input sanitization, no `shell=True` |
-| ♿ **WCAG Accessibility** | Dashboard with skip links, ARIA labels, keyboard navigation, reduced-motion support |
-| 🧪 **Comprehensive Tests** | 90+ assertions across unit, integration, and security tests with coverage config |
-| 📝 **Full Type Coverage** | PEP 561 typed packages, Google-style docstrings on every function |
-| 🔄 **Auto-Reconnect** | Exponential backoff ensures the client never loses connection silently |
+| Service | Purpose | Implementation |
+|---------|---------|----------------|
+| **Cloud Run** | Serverless container deployment | Auto-scaling, PORT env, healthcheck |
+| **Cloud Build** | CI/CD pipeline | `cloudbuild.yaml` — build + push + deploy |
+| **Cloud Storage** | Screenshot + log persistence | Dual-write with tenacity exponential backoff |
+| **Cloud Firestore** | Structured data persistence | CRUD for observations, actions, sessions |
+| **Secret Manager** | Runtime credential loading | No `.env` in production, env var fallback |
+| **Cloud Logging** | Production observability | Python logging → Cloud Logging integration |
+| **Gemini 2.0 Flash** | Multimodal screen analysis | Vision + coordinate detection + retry |
 
 ---
 
-## 🚀 Google Cloud Services
+## 🔒 Security — Zero-Trust Architecture
 
-| Service | Usage |
-|---------|-------|
-| **Cloud Run** | Serverless container deployment with auto-scaling |
-| **Cloud Build** | Automated CI/CD pipeline (`cloudbuild.yaml`) |
-| **Cloud Storage** | Screenshot persistence and JSONL action log storage |
-| **Cloud Firestore** | Structured data persistence for observations, actions, sessions |
-| **Gemini 2.0 Flash Vision API** | Multimodal screen analysis and coordinate detection |
+> Full security policy: [`SECURITY.md`](SECURITY.md)
+
+| OWASP Risk | Mitigation |
+|------------|------------|
+| **A03:2021 Injection** | Pydantic V2 strict validation, `sanitize_command()`, no `shell=True`, URL scheme restriction |
+| **A04:2021 Insecure Design** | Per-IP rate limiting (token bucket), confidence thresholding on actions |
+| **A05:2021 Misconfiguration** | CSP `strict-dynamic`, X-Frame-Options DENY, HSTS, security headers middleware |
+| **A07:2021 Auth Failures** | HMAC constant-time key comparison, Secret Manager for production creds |
+| **A10:2021 SSRF** | URL validation restricting to `http://` and `https://` only |
+
+**Security test coverage:**
+- `tests/test_security.py` — Rate limiting, auth, sanitization
+- `tests/test_vulnerabilities.py` — ReDoS, command injection, path traversal, XSS
+- `tests/test_property.py` — Hypothesis property-based fuzzing (500+ generated inputs)
 
 ---
 
-## 🔌 API Reference
+## 🧪 Testing — 130+ Assertions, 80%+ Coverage
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Interactive live dashboard |
-| `GET` | `/health` | System health, version, storage + Firestore status |
-| `GET` | `/stats` | Live stats — apps seen, errors detected |
-| `GET` | `/api/observations` | Recent observations (Firestore) |
-| `GET` | `/api/actions` | Recent action logs (Firestore) |
-| `GET` | `/api/storage` | Storage backend health |
-| `WS` | `/ws` | Real-time screen observation + command stream |
+```bash
+pytest tests/ -v --cov=backend --cov=client --cov-report=term-missing
+```
 
-Full API documentation: [`docs/API.md`](docs/API.md)
+| Test File | Tests | Coverage Area |
+|-----------|-------|---------------|
+| `test_argus.py` | 49 | Core: GeminiAgent, ContextManager, Storage, API, WebSocket |
+| `test_security.py` | 18 | Rate limiting, auth, sanitization, URL validation |
+| `test_vulnerabilities.py` | 20+ | ReDoS, injection, path traversal, XSS, timing attacks |
+| `test_property.py` | 10+ | Hypothesis fuzzing: 500+ generated edge-case inputs |
+| `test_executor.py` | 10 | Click, type, open_url, confidence thresholding |
+| `test_firestore.py` | 11 | Firestore CRUD, graceful degradation |
+| `test_integration.py` | 5 | End-to-end WebSocket flows |
+| `test_screenshot.py` | 6 | Pixel diff detection, resolution changes |
+| `test_voice_listener.py` | 6 | Mic detection, keyboard fallback, wake word |
+| `test_gemini.py` | 2 | Agent initialization |
+
+**Quality tools:**
+- `mypy --strict` — Full type checking
+- `ruff` — Linting with `flake8-bandit` security rules
+- `hypothesis` — Property-based testing
+- `pytest-cov` — Coverage enforcement (75% minimum)
+
+---
+
+## ♿ Accessibility — WCAG AA+
+
+| Feature | Implementation |
+|---------|----------------|
+| Skip-to-content link | First focusable element in DOM |
+| ARIA live regions | `aria-live="polite"` on stats, agent status, health check, action log |
+| Focus management | New actions append without stealing focus (WCAG 3.2.1) |
+| Keyboard navigation | All cards, logs, and interactive elements are tabbable |
+| Focus-visible styles | Custom 3px focus ring on all interactive elements |
+| Reduced motion | `prefers-reduced-motion` media query disables animations |
+| High contrast | `prefers-contrast: high` adjusts colors for readability |
+| Semantic HTML5 | `header`, `main`, `footer`, `section`, `nav`, `article` landmarks |
+| Heading hierarchy | Single `<h1>`, proper `<h2>`/`<h3>` nesting |
 
 ---
 
@@ -141,136 +189,126 @@ Full API documentation: [`docs/API.md`](docs/API.md)
 
 ```text
 argus-agent/
-├── pyproject.toml               # Project metadata, pytest, coverage, mypy, ruff config
-├── Dockerfile                   # Cloud Run deployment (non-root user, healthcheck)
-├── cloudbuild.yaml              # Google Cloud Build CI/CD pipeline
-├── requirements.txt             # Python dependencies
+├── pyproject.toml               # Project config: pytest, coverage, mypy, ruff
+├── Dockerfile                   # Cloud Run (non-root user, healthcheck)
+├── cloudbuild.yaml              # Google Cloud Build CI/CD
+├── requirements.txt             # All dependencies
+├── SECURITY.md                  # OWASP-aligned security policy
+├── CONTRIBUTING.md              # Code standards and process
 ├── .env.example                 # Documented environment variables
 ├── conftest.py                  # Root pytest configuration
-├── run.bat                      # One-click Windows launcher
 │
 ├── backend/                     # Cloud Brain (FastAPI)
-│   ├── __init__.py              # Package with module docstrings
 │   ├── py.typed                 # PEP 561 typed package marker
-│   ├── main.py                  # Server entrypoint, REST + WebSocket + security middleware
+│   ├── main.py                  # Server: REST + WebSocket + middleware
+│   ├── models.py                # Pydantic V2 strict validation models
 │   ├── gemini_agent.py          # Vision analysis with retry logic
 │   ├── context_manager.py       # Rolling deque-based observation window
-│   ├── storage.py               # GCS + local filesystem dual-write storage
-│   ├── firestore_client.py      # Cloud Firestore CRUD operations
-│   ├── security.py              # Rate limiter, auth, sanitization, security headers
-│   └── dashboard.html           # WCAG-compliant real-time dashboard
+│   ├── storage.py               # GCS + local dual-write (tenacity retry)
+│   ├── firestore_client.py      # Cloud Firestore CRUD
+│   ├── secret_manager.py        # Google Secret Manager integration
+│   ├── security.py              # Rate limiter, auth, sanitization (OWASP)
+│   └── dashboard.html           # WCAG AA dashboard with ARIA live regions
 │
 ├── client/                      # Local Machine Agent
-│   ├── __init__.py              # Package with module docstrings
 │   ├── py.typed                 # PEP 561 typed package marker
-│   ├── argus_client.py          # Main orchestrator with observation + command loops
-│   ├── screen_capture.py        # MSS capture + NumPy pixel-diff filtering
-│   ├── voice_listener.py        # Wake word detection (SpeechRecognition)
+│   ├── argus_client.py          # Main orchestrator
+│   ├── screen_capture.py        # MSS + NumPy pixel-diff
+│   ├── voice_listener.py        # Wake word (SpeechRecognition)
 │   └── executor.py              # Safe action execution (no shell=True)
 │
-├── tests/                       # Quality Assurance
-│   ├── __init__.py              # Test package
-│   ├── conftest.py              # Shared test fixtures
-│   ├── test_argus.py            # Core test suite (70+ assertions)
-│   ├── test_security.py         # Security-focused tests
+├── tests/                       # 130+ assertions
+│   ├── conftest.py              # Shared fixtures
+│   ├── test_argus.py            # Core suite (49 assertions)
+│   ├── test_security.py         # Security tests
+│   ├── test_vulnerabilities.py  # ReDoS, injection, XSS, timing
+│   ├── test_property.py         # Hypothesis property-based fuzzing
 │   ├── test_executor.py         # Action executor tests
-│   ├── test_firestore.py        # Firestore client tests
-│   ├── test_integration.py      # End-to-end WebSocket flow tests
+│   ├── test_firestore.py        # Firestore tests
+│   ├── test_integration.py      # E2E WebSocket tests
+│   ├── test_screenshot.py       # Screen capture tests
 │   ├── test_voice_listener.py   # Voice listener tests
-│   ├── test_screenshot.py       # Screen capture + diff tests
-│   └── test_gemini.py           # Gemini agent unit tests
+│   └── test_gemini.py           # Agent tests
 │
-├── docs/                        # Documentation
-│   ├── API.md                   # Full API reference
-│   └── architecture.svg         # Architecture diagram
-│
-└── CONTRIBUTING.md              # Contribution guidelines
+└── docs/                        # Documentation
+    ├── API.md                   # Full API reference
+    └── architecture.svg         # System diagram
 ```
 
 ---
 
 ## 🛠️ Local Setup
 
-### Prerequisites
-- Python 3.10+
-- Gemini API key — free at [Google AI Studio](https://aistudio.google.com)
-
-### Install & Run
-
 ```bash
 git clone https://github.com/vivekyarra/argus-agent.git
 cd argus-agent
 pip install -r requirements.txt
 
-# Configure
 cp .env.example .env
 # Edit .env with your GEMINI_API_KEY
 
 # Start backend
 uvicorn backend.main:app --port 8000
 
-# Start client (in a new terminal)
+# Start client (separate terminal)
 python -m client.argus_client
-```
-
-### Run Tests
-
-```bash
-# Full test suite with coverage
-pytest tests/ -v --cov=backend --cov=client --cov-report=term-missing
-
-# Security tests only
-pytest tests/test_security.py -v
-
-# Integration tests only
-pytest tests/test_integration.py -v
 ```
 
 ---
 
-## 💡 Why ARGUS Is Different
+## 🔌 API Reference
 
-| | Traditional AI Assistants | ARGUS |
-|---|---|---|
-| **Activation** | You open it and explain everything | Say "ARGUS" — it already knows |
-| **Context** | You provide it manually every time | Built automatically over 1 minute |
-| **Screen Access** | DOM scraping or APIs only | Pure pixel vision — works on ANY app |
-| **Execution** | Simulated or sandboxed | Real mouse, real clicks, real keyboard |
-| **Memory** | None between turns | Rolling context window |
-| **API Cost** | Constant calls | Pixel diff reduces calls by ~80% |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Interactive WCAG-compliant dashboard |
+| `GET` | `/health` | Health: version, storage, Firestore, Secret Manager, Cloud Logging |
+| `GET` | `/stats` | Live stats: apps, errors, context window |
+| `GET` | `/api/observations` | Recent observations (Firestore) |
+| `GET` | `/api/actions` | Recent action logs (Firestore) |
+| `GET` | `/api/storage` | Storage backend health |
+| `WS` | `/ws` | Real-time observation + command (Pydantic validated) |
+
+Full reference: [`docs/API.md`](docs/API.md)
 
 ---
 
 ## 📊 Key Engineering Decisions
 
-- **Pixel diff filter** — NumPy frame comparison reduces Gemini API calls by ~80%, making the free tier viable for continuous operation
-- **Confidence thresholding** — Actions with confidence below 0.6 are narrated but not executed, preventing accidental mouse movement
-- **Append-only JSONL** — Storage uses JSONL append instead of read-modify-write, eliminating I/O bottleneck on high-frequency logging
-- **Deque-based context** — `collections.deque(maxlen=500)` provides O(1) append/evict with bounded memory usage
-- **Retry with backoff** — All Gemini API calls include exponential backoff retry logic for resilience
-- **No `shell=True`** — URL opening uses `webbrowser.open()` to prevent shell injection vulnerabilities
-- **Dual-write storage** — Screenshots persist to both local filesystem and GCS for reliability
+| Decision | Rationale |
+|----------|-----------|
+| **Pixel diff filter** | NumPy comparison reduces Gemini calls by ~80%, making free tier viable |
+| **Confidence thresholding** | Actions below 0.6 are narrated but not executed — safety first |
+| **Pydantic V2 strict** | Every WebSocket payload validated before touching business logic |
+| **Secret Manager > .env** | Zero secrets on disk in production; env var fallback for dev |
+| **Cloud Logging** | Structured logs enable production debugging and alerting |
+| **Tenacity retry** | GCS uploads retry 3x with exponential backoff (1s → 4s) |
+| **Deque(maxlen=500)** | O(1) append/evict with bounded memory |
+| **JSONL append** | No read-modify-write — eliminates I/O bottleneck |
+| **Non-root Docker** | Container runs as unprivileged `appuser` |
 
 ---
 
-## 🔒 Security
+## 💡 Why ARGUS Is Different
 
-- **No `shell=True`** — All process creation uses safe alternatives
-- **Rate limiting** — Per-client IP with configurable window and limit
-- **API key authentication** — Optional WebSocket auth with constant-time key comparison
-- **Input sanitization** — Commands stripped of null bytes, ANSI escapes, and control characters
-- **URL validation** — Only `http://` and `https://` schemes allowed
-- **Security headers** — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- **CORS** — Configurable allowed origins
-- **Non-root container** — Docker image runs as unprivileged user
+| | Traditional AI | ARGUS |
+|---|---|---|
+| **Activation** | You explain everything | Say "ARGUS" — it already knows |
+| **Context** | You provide manually | Built automatically over time |
+| **Screen** | DOM/API only | Pure pixel vision — works on ANY app |
+| **Execution** | Simulated | Real mouse, real clicks |
+| **Memory** | None | Rolling context window |
+| **API Cost** | Every frame | Pixel diff reduces calls 80% |
+| **Secrets** | In `.env` files | Google Secret Manager at runtime |
+| **Observability** | `print()` statements | Google Cloud Logging |
+| **Validation** | Manual string checks | Pydantic V2 strict models |
 
 ---
 
 ## 🔮 Roadmap
 
 - Multi-monitor support
-- Persistent long-term memory via Vertex AI embeddings
-- Native Gemini Live API streaming for real-time interruption handling
+- Vertex AI embeddings for long-term memory
+- Gemini Live API streaming for real-time interruptions
 - Mobile screen support via ADB bridge
 
 ---

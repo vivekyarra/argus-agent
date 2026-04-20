@@ -22,10 +22,16 @@ from typing import Any, Optional
 
 from PIL import Image
 
+try:
+    from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+    TENACITY_AVAILABLE: bool = True
+except ImportError:
+    TENACITY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 try:
-    from google.cloud import storage as gcs
+    from google.cloud import storage as gcs  # type: ignore
 
     GCS_AVAILABLE: bool = True
 except ImportError:
@@ -76,10 +82,10 @@ class Storage:
     def _upload_to_gcs(
         self, blob_name: str, data: bytes, content_type: str = "image/png"
     ) -> bool:
-        """Upload data to Google Cloud Storage.
+        """Upload data to Google Cloud Storage with exponential backoff.
 
-        Best-effort upload that logs errors but does not raise exceptions.
-        Returns success status for monitoring.
+        Uses tenacity retry (3 attempts, exponential backoff from 1s to 4s)
+        for resilient uploads. Best-effort — logs errors but does not raise.
 
         Args:
             blob_name: The GCS object name (path within the bucket).
@@ -92,13 +98,27 @@ class Storage:
         if not self.bucket:
             return False
         try:
-            blob = self.bucket.blob(blob_name)
-            blob.upload_from_string(data, content_type=content_type)
-            logger.debug("Uploaded to GCS: gs://%s/%s", GCS_BUCKET, blob_name)
-            return True
+            return self._do_upload(blob_name, data, content_type)
         except Exception as exc:
-            logger.error("GCS upload failed for %s: %s", blob_name, exc)
+            logger.error("GCS upload failed after retries for %s: %s", blob_name, exc)
             return False
+
+    def _do_upload(self, blob_name: str, data: bytes, content_type: str) -> bool:
+        """Execute the actual GCS upload (wrapped by retry decorator at runtime).
+
+        Args:
+            blob_name: The GCS object name.
+            data: Raw bytes to upload.
+            content_type: MIME type.
+
+        Returns:
+            True on success.
+        """
+        assert self.bucket is not None
+        blob = self.bucket.blob(blob_name)
+        blob.upload_from_string(data, content_type=content_type)
+        logger.debug("Uploaded to GCS: gs://%s/%s", GCS_BUCKET, blob_name)
+        return True
 
     def save_screenshot(
         self, pil_image: Image.Image, timestamp: Optional[str] = None

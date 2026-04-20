@@ -13,6 +13,7 @@ from unittest.mock import patch, MagicMock
 from typing import Any
 
 import pytest
+from typing import Generator
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -38,7 +39,7 @@ class TestWebSocketIntegration:
     """Integration tests for WebSocket communication flows."""
 
     @pytest.fixture
-    def client(self) -> TestClient:
+    def client(self) -> Generator[TestClient, None, None]:
         """Create a test client with mocked dependencies."""
         with patch("google.generativeai.configure"), \
              patch("google.generativeai.GenerativeModel") as mock_model_cls, \

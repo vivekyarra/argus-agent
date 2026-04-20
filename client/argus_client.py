@@ -286,7 +286,7 @@ async def main() -> None:
 
                 await asyncio.gather(obs_task, cmd_task)
 
-        except (websockets.exceptions.ConnectionRefused, OSError):
+        except OSError:
             logger.warning(
                 "Backend not running. Retrying in %ds...", retry_delay
             )

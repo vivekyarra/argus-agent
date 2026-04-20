@@ -40,6 +40,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Cloud Logging Integration ────────────────────────────────────────
+# When deployed on GCP, Cloud Logging auto-captures structured logs.
+# This integrates Python's logging module with Cloud Logging for
+# production observability, alerting, and audit trail compliance.
+try:
+    import google.cloud.logging as cloud_logging
+
+    cloud_client = cloud_logging.Client()
+    cloud_client.setup_logging()
+    _CLOUD_LOGGING_AVAILABLE: bool = True
+except (ImportError, Exception):
+    _CLOUD_LOGGING_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +67,8 @@ from backend.context_manager import ContextManager
 from backend.storage import Storage
 from backend.gemini_agent import GeminiAgent
 from backend.firestore_client import FirestoreClient
+from backend.secret_manager import get_secret, health_check as sm_health_check
+from backend.models import parse_ws_message, ObserveMessage, CommandMessage
 from backend.security import (
     RateLimiter,
     SecurityHeadersMiddleware,
@@ -192,12 +207,14 @@ async def health() -> JSONResponse:
     """
     return JSONResponse({
         "status": "operational",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "observations": context_manager.get_observation_count(),
         "timestamp": datetime.now().isoformat(),
         "model": "gemini-2.0-flash-lite",
         "storage": storage.health_check(),
         "firestore": firestore_db.health_check(),
+        "secret_manager": sm_health_check(),
+        "cloud_logging": _CLOUD_LOGGING_AVAILABLE,
     })
 
 

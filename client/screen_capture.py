@@ -44,7 +44,7 @@ class ScreenCapture:
         Creates an MSS instance for platform-native screen capture.
         """
         self.last_screenshot_b64: Optional[str] = None
-        self.sct: mss.mss = mss.mss()
+        self.sct = mss.mss()
         logger.info("ScreenCapture initialized")
 
     def capture(self) -> Image.Image:
@@ -53,8 +53,8 @@ class ScreenCapture:
         Returns:
             PIL Image of the full primary monitor in RGB mode.
         """
-        monitor: dict = self.sct.monitors[1]
-        screenshot = self.sct.grab(monitor)
+        monitor: dict = self.sct.monitors[1]  # type: ignore[attr-defined]
+        screenshot = self.sct.grab(monitor)  # type: ignore[attr-defined]
         img: Image.Image = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
         return img
 

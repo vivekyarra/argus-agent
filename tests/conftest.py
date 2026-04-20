@@ -7,7 +7,7 @@ directories, patched Gemini API, and FastAPI test clients.
 import base64
 import os
 from io import BytesIO
-from typing import Generator
+from typing import Generator, Any
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -60,7 +60,7 @@ def oversized_image() -> Image.Image:
 
 
 @pytest.fixture
-def mock_gemini():
+def mock_gemini() -> Generator[tuple[MagicMock, MagicMock], None, None]:
     """Patch Gemini API for isolated unit testing.
 
     Yields:
@@ -72,7 +72,7 @@ def mock_gemini():
 
 
 @pytest.fixture
-def mock_gcs():
+def mock_gcs() -> Generator[None, None, None]:
     """Patch Google Cloud Storage for isolated testing.
 
     Yields:
@@ -84,7 +84,7 @@ def mock_gcs():
 
 
 @pytest.fixture
-def test_client(mock_gemini, mock_gcs):
+def test_client(mock_gemini: tuple[MagicMock, MagicMock], mock_gcs: None) -> Any:
     """Create a FastAPI TestClient with mocked dependencies.
 
     Args:

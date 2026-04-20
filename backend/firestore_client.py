@@ -94,7 +94,7 @@ class FirestoreClient:
         try:
             observation["stored_at"] = datetime.utcnow().isoformat()
             doc_ref = self.db.collection("observations").add(observation)
-            return doc_ref[1].id
+            return str(doc_ref[1].id)
         except Exception as exc:
             logger.error("Failed to store observation: %s", exc)
             return None
@@ -113,7 +113,7 @@ class FirestoreClient:
         try:
             action["stored_at"] = datetime.utcnow().isoformat()
             doc_ref = self.db.collection("actions").add(action)
-            return doc_ref[1].id
+            return str(doc_ref[1].id)
         except Exception as exc:
             logger.error("Failed to store action: %s", exc)
             return None
@@ -133,7 +133,7 @@ class FirestoreClient:
         try:
             session_data["created_at"] = datetime.utcnow().isoformat()
             doc_ref = self.db.collection("sessions").add(session_data)
-            return doc_ref[1].id
+            return str(doc_ref[1].id)
         except Exception as exc:
             logger.error("Failed to store session: %s", exc)
             return None

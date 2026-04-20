@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="description" content="ARGUS - Ambient AI Screen Intelligence Agent powered by Gemini 2.0 Flash Vision. Real-time monitoring dashboard."/>
 <meta name="theme-color" content="#0a0a0f"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'strict-dynamic' 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"/>
 <title>ARGUS — Ambient AI Agent Dashboard</title>
 <style>
   :root {
@@ -359,6 +359,8 @@
       <span class="tag">Google Cloud Run</span>
       <span class="tag">Cloud Storage</span>
       <span class="tag">Cloud Firestore</span>
+      <span class="tag">Secret Manager</span>
+      <span class="tag">Cloud Logging</span>
       <span class="tag">Python 3.11</span>
     </nav>
   </section>
@@ -464,23 +466,39 @@
       <span class="endpoint-path">/ws</span>
       <span class="endpoint-desc">Real-time screen observation + command stream</span>
     </div>
-    <h3 style="margin-top:1.5rem;margin-bottom:0.75rem;font-size:0.9rem;color:var(--muted)">Live Health Check</h3>
-    <div class="health-display" id="health-output" role="log" aria-live="polite" aria-label="Live server health data">Fetching status...</div>
+    <h3 style="margin-top:1.5rem;margin-bottom:0.75rem;font-size:0.9rem;color:var(--muted)">Agent Status</h3>
+    <div id="agent-status" role="status" aria-live="polite" aria-atomic="true" class="health-display" style="min-height:40px;margin-bottom:1rem">
+      <span aria-label="Agent idle">🟢 Agent idle — awaiting observations</span>
+    </div>
+    <h3 style="margin-bottom:0.75rem;font-size:0.9rem;color:var(--muted)">Live Health Check</h3>
+    <div class="health-display" id="health-output" role="log" aria-live="polite" aria-label="Live server health data" aria-relevant="additions text">Fetching status...</div>
+    <h3 style="margin-top:1rem;margin-bottom:0.75rem;font-size:0.9rem;color:var(--muted)">Recent Actions</h3>
+    <div id="action-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Recent agent actions" class="health-display" style="min-height:60px;max-height:200px;overflow-y:auto" tabindex="0">
+      No actions logged yet.
+    </div>
   </section>
 </main>
 
 <footer role="contentinfo">
-  <p>ARGUS — Ambient AI Screen Intelligence Agent</p>
-  <p style="margin-top:0.5rem">Gemini 2.0 Flash Vision · FastAPI · Google Cloud Run · Cloud Storage · Firestore</p>
+  <p>ARGUS v2.2.0 — Ambient AI Screen Intelligence Agent</p>
+  <p style="margin-top:0.5rem">Gemini 2.0 Flash Vision · FastAPI · Cloud Run · Cloud Storage · Firestore · Secret Manager · Cloud Logging</p>
 </footer>
 
 <script>
   /**
    * Fetch health data from the backend API and update dashboard elements.
+   * Uses aria-live regions to announce changes to screen readers.
+   * Focus management: new action logs do NOT steal focus (WCAG 3.2.1).
    * @returns {Promise<void>}
    */
   async function fetchHealth() {
+    const agentStatus = document.getElementById('agent-status');
     try {
+      // Signal "thinking" state to assistive tech
+      if (agentStatus) {
+        agentStatus.innerHTML = '<span aria-label="Agent checking">🔄 Checking system health...</span>';
+      }
+
       const response = await fetch('/health');
       const data = await response.json();
       const healthOutput = document.getElementById('health-output');
@@ -500,6 +518,9 @@
       if (statusText) {
         statusText.textContent = 'Operational';
       }
+      if (agentStatus) {
+        agentStatus.innerHTML = '<span aria-label="Agent operational">🟢 System operational — ' + data.observations + ' observations</span>';
+      }
     } catch (error) {
       const statusText = document.getElementById('status-text');
       const healthOutput = document.getElementById('health-output');
@@ -509,12 +530,39 @@
       if (healthOutput) {
         healthOutput.textContent = 'Backend online — WebSocket ready';
       }
+      if (agentStatus) {
+        agentStatus.innerHTML = '<span aria-label="Agent connecting">🟡 Connecting to backend...</span>';
+      }
+    }
+  }
+
+  /**
+   * Fetch recent actions from the backend and append to log.
+   * Uses aria-relevant="additions" so screen readers only announce new items.
+   * Does NOT move focus — users can tab into the log region when ready.
+   * @returns {Promise<void>}
+   */
+  async function fetchActions() {
+    try {
+      const response = await fetch('/api/actions');
+      const data = await response.json();
+      const actionLog = document.getElementById('action-log');
+      if (actionLog && data.actions && data.actions.length > 0) {
+        const entries = data.actions.slice(0, 5).map(a =>
+          `[${a.stored_at || 'now'}] ${a.command || 'observe'}`
+        ).join('\n');
+        actionLog.textContent = entries;
+      }
+    } catch (e) {
+      // Silently ignore — action log is optional
     }
   }
 
   // Initial fetch and polling
   fetchHealth();
+  fetchActions();
   setInterval(fetchHealth, 5000);
+  setInterval(fetchActions, 10000);
 </script>
 </body>
 </html>

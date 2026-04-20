@@ -50,11 +50,13 @@ def analyze(image: Image.Image) -> dict[str, Any]:
 
 ### Security
 - Never use `shell=True` in subprocess calls
-- Validate all user input before processing
+- Validate all user input with **Pydantic V2** strict models
 - Use `webbrowser.open()` for URL handling
 - Sanitize commands before forwarding to AI
+- Add OWASP Top 10 references in security-related docstrings
+- Store secrets in Google Cloud Secret Manager (never `.env` in prod)
 
-## Running Tests
+## Quality Checks
 
 ```bash
 # Run all tests
@@ -64,9 +66,16 @@ pytest tests/ -v
 pytest tests/ -v --cov=backend --cov=client --cov-report=term-missing
 
 # Run specific test categories
-pytest tests/test_security.py -v       # Security tests
-pytest tests/test_integration.py -v    # Integration tests
-pytest tests/ -m "not integration"     # Skip integration tests
+pytest tests/test_security.py -v         # Security tests
+pytest tests/test_vulnerabilities.py -v  # Vulnerability tests
+pytest tests/test_property.py -v         # Hypothesis fuzzing
+pytest tests/test_integration.py -v      # Integration tests
+
+# Type checking (must pass with zero errors)
+mypy --strict backend/ client/
+
+# Linting
+ruff check backend/ client/ tests/
 ```
 
 ## Pull Request Process
@@ -74,17 +83,21 @@ pytest tests/ -m "not integration"     # Skip integration tests
 1. Create a feature branch from `main`
 2. Add tests for any new functionality
 3. Ensure all tests pass with `pytest tests/ -v`
-4. Update documentation if needed
-5. Submit a pull request with a clear description
+4. Run `mypy --strict` with zero errors
+5. Update documentation if needed
+6. Submit a pull request with a clear description
 
 ## Code Review Checklist
 
 - [ ] All functions have type annotations
 - [ ] All public functions have docstrings
+- [ ] `mypy --strict` passes with zero errors
 - [ ] No `shell=True` in subprocess calls
-- [ ] Input validation is present
-- [ ] Tests are included for new code
+- [ ] Input validation uses Pydantic V2 strict models
+- [ ] Security functions reference OWASP Top 10
+- [ ] Tests are included for new code (including Hypothesis where applicable)
 - [ ] No secrets or API keys in code
+- [ ] Coverage remains above 75%
 
 ## License
 
